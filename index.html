@@ -213,6 +213,15 @@
     background: var(--warn-bg);
     border-bottom-color: var(--warn-border);
   }
+  .form-doc-seq-banner.delete-request {
+    background: #fdeaea;
+    border-bottom-color: var(--iberia-red);
+  }
+  .form-doc-seq-banner.delete-request .id-pill {
+    background: #fdeaea;
+    border-color: var(--iberia-red);
+    color: var(--iberia-red);
+  }
   .form-doc-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -238,6 +247,36 @@
   }
   .form-doc-field .fvalue.empty { color: #bbb; font-style: italic; }
   .form-doc-field .fvalue a { color: #1a5fb4; text-decoration: none; }
+
+  .form-doc-request-type {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+  .form-doc-request-type .rt-label {
+    font-weight: 700;
+    display: block;
+    margin-bottom: 6px;
+  }
+  .rt-options { display: flex; gap: 24px; }
+  .rt-option { display: flex; align-items: center; gap: 6px; }
+  .rt-option .rt-dot {
+    width: 15px; height: 15px;
+    border-radius: 50%;
+    border: 2px solid #999;
+    display: inline-block;
+    position: relative;
+  }
+  .rt-option.selected .rt-dot {
+    border-color: var(--ok-border);
+    background: var(--ok-border);
+  }
+  .rt-option.selected span.rt-text { font-weight: 700; }
+  .rt-option.selected-delete .rt-dot {
+    border-color: var(--iberia-red);
+    background: var(--iberia-red);
+  }
+  .rt-option.selected-delete span.rt-text { font-weight: 700; color: var(--iberia-red); }
 </style>
 </head>
 <body>
@@ -340,12 +379,17 @@ const INTERNAL_FIELDS = new Set([
   'formSequenceEntry', 'formSequence', 'sequenceEntry', 'certifyingStaffId'
 ]);
 
-// Mismo orden y misma agrupación por filas que el PDF original de Docunet
+// Mismo orden y misma agrupación por filas que el PDF original de Docunet (alta)
 const PDF_FIELD_ORDER = [
   ['iataStationCode', 'role', 'company'],
   ['name', 'surname', 'name1'],
   ['stampIdStaffId', 'uploadAircraftMaintenanceLicence', null],
   ['amos', 'eTLB', 'Docunet']
+];
+
+// Campos que sí aplican cuando la solicitud es de baja (deleteUser)
+const DELETE_FIELD_ORDER = [
+  ['companyMail', 'iberiaDomainUser1']
 ];
 
 // Etiquetas legibles para las claves conocidas del formulario (igual que en el PDF)
@@ -360,7 +404,9 @@ const LABEL_MAP = {
   uploadAircraftMaintenanceLicence: 'Upload Aircraft Maintenance Licence',
   amos: 'AMOS Role',
   eTLB: 'e-TLB role',
-  Docunet: 'ContentManager365 role'
+  Docunet: 'ContentManager365 role',
+  companyMail: 'Company mail',
+  iberiaDomainUser1: 'Iberia Domain User'
 };
 
 function humanizeKey(key) {
@@ -412,25 +458,42 @@ function renderFormView(records) {
     const doc = document.createElement('div');
     doc.className = 'form-doc';
 
+    const isDelete = record.radio === 'deleteUser';
+    const isNew = record.radio === 'newUser';
+
     let html = `
       <div class="form-doc-header">
         <span>Submitted on ${escapeHtml(submitted)}</span>
         <span>Identifier - ${escapeHtml(identifier)}</span>
       </div>
       <div class="form-doc-title">${escapeHtml(record.formName || 'User Management Form')}</div>
+      <div class="form-doc-request-type">
+        <span class="rt-label">Request Type</span>
+        <div class="rt-options">
+          <div class="rt-option ${isNew ? 'selected' : ''}">
+            <span class="rt-dot"></span><span class="rt-text">New User</span>
+          </div>
+          <div class="rt-option ${isDelete ? 'selected selected-delete' : ''}">
+            <span class="rt-dot"></span><span class="rt-text">Delete User</span>
+          </div>
+        </div>
+      </div>
+      ${isDelete ? '' : `
       <div class="form-doc-seq-banner ${seqValue ? '' : 'pending'}">
         ${seqValue
           ? `<b>Certifying Staff ID:</b> <span class="id-pill">${escapeHtml(seqValue)}</span>
              <button class="copy-btn" onclick="copyValue('${escapeHtml(seqValue)}', this)">Copiar</button>`
           : `<span class="pending-pill">Certifying Staff ID: sin asignar / pendiente</span>`}
       </div>
+      `}
       <div class="form-doc-grid">
     `;
 
     const rendered = new Set();
+    const fieldOrder = isDelete ? DELETE_FIELD_ORDER : PDF_FIELD_ORDER;
 
-    // 1. Campos en el mismo orden y agrupación de filas que el PDF
-    PDF_FIELD_ORDER.forEach(row => {
+    // 1. Campos en el orden correspondiente (alta o baja)
+    fieldOrder.forEach(row => {
       row.forEach(key => {
         if (key === null) {
           html += `<div class="form-doc-field"></div>`;
@@ -451,16 +514,18 @@ function renderFormView(records) {
     });
 
     // 2. Cualquier otro campo del formulario no contemplado en el orden fijo
-    //    (para no perder datos si el formulario cambia en el futuro)
-    Object.keys(record).forEach(key => {
-      if (INTERNAL_FIELDS.has(key) || rendered.has(key)) return;
-      html += `
-        <div class="form-doc-field">
-          <span class="flabel">${escapeHtml(humanizeKey(key))}</span>
-          ${copyableValueHtml(record[key])}
-        </div>
-      `;
-    });
+    //    (solo aplica a altas; en bajas solo interesan los dos campos anteriores)
+    if (!isDelete) {
+      Object.keys(record).forEach(key => {
+        if (INTERNAL_FIELDS.has(key) || rendered.has(key)) return;
+        html += `
+          <div class="form-doc-field">
+            <span class="flabel">${escapeHtml(humanizeKey(key))}</span>
+            ${copyableValueHtml(record[key])}
+          </div>
+        `;
+      });
+    }
 
     html += `</div>`;
     doc.innerHTML = html;
