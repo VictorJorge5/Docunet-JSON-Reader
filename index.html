@@ -259,25 +259,7 @@
 
   <div id="resultsCard" class="card" style="display:none;">
     <div class="summary" id="summary"></div>
-    <div class="view-toggle">
-      <button id="tabBtnTable" class="active" onclick="switchView('table')">Vista tabla</button>
-      <button id="tabBtnForm" onclick="switchView('form')">Vista formulario (como el PDF)</button>
-    </div>
-
-    <table id="resultsTable">
-      <thead>
-        <tr>
-          <th>Nombre</th>
-          <th>Estación</th>
-          <th>Compañía</th>
-          <th>Fecha alta</th>
-          <th>Certifying Staff ID</th>
-        </tr>
-      </thead>
-      <tbody id="resultsBody"></tbody>
-    </table>
-
-    <div id="formView" style="display:none;"></div>
+    <div id="formView"></div>
   </div>
 
   <div id="emptyState" class="card empty-state">
@@ -350,13 +332,21 @@ function findSequenceKey(obj) {
 let lastRecords = [];
 
 // Campos que son metadatos internos de la plataforma y no aparecen como
-// campos rellenados por el usuario en el PDF (se ocultan en la vista formulario)
+// campos rellenados por el usuario en el PDF
 const INTERNAL_FIELDS = new Set([
   'user', 'username', 'id', 'formName', 'radio',
   'vst_code', 'vst_revisionId', 'vst_lastUpdated', 'vst_revisionInfo',
   'dateSubmitted', 'dateSubmittedLocal',
   'formSequenceEntry', 'formSequence', 'sequenceEntry', 'certifyingStaffId'
 ]);
+
+// Mismo orden y misma agrupación por filas que el PDF original de Docunet
+const PDF_FIELD_ORDER = [
+  ['iataStationCode', 'role', 'company'],
+  ['name', 'surname', 'name1'],
+  ['stampIdStaffId', 'uploadAircraftMaintenanceLicence', null],
+  ['amos', 'eTLB', 'Docunet']
+];
 
 // Etiquetas legibles para las claves conocidas del formulario (igual que en el PDF)
 const LABEL_MAP = {
@@ -375,7 +365,6 @@ const LABEL_MAP = {
 
 function humanizeKey(key) {
   if (LABEL_MAP[key]) return LABEL_MAP[key];
-  // camelCase -> "Camel Case"
   const spaced = key.replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/_/g, ' ');
   return spaced.charAt(0).toUpperCase() + spaced.slice(1);
 }
@@ -401,6 +390,15 @@ function formatValue(value) {
   return `<span class="fvalue">${escapeHtml(value)}</span>`;
 }
 
+function copyableValueHtml(value) {
+  // Solo se ofrece copiar para valores simples de texto/número (no archivos ni objetos)
+  const isSimple = (typeof value === 'string' || typeof value === 'number') && value !== '';
+  const base = formatValue(value);
+  if (!isSimple) return base;
+  const safe = escapeHtml(value).replace(/'/g, "\\'");
+  return `${base} <button class="copy-btn" onclick="copyValue('${safe}', this)">Copiar</button>`;
+}
+
 function renderFormView(records) {
   const container = document.getElementById('formView');
   container.innerHTML = '';
@@ -414,7 +412,6 @@ function renderFormView(records) {
     const doc = document.createElement('div');
     doc.className = 'form-doc';
 
-    // Cabecera estilo PDF
     let html = `
       <div class="form-doc-header">
         <span>Submitted on ${escapeHtml(submitted)}</span>
@@ -430,12 +427,37 @@ function renderFormView(records) {
       <div class="form-doc-grid">
     `;
 
+    const rendered = new Set();
+
+    // 1. Campos en el mismo orden y agrupación de filas que el PDF
+    PDF_FIELD_ORDER.forEach(row => {
+      row.forEach(key => {
+        if (key === null) {
+          html += `<div class="form-doc-field"></div>`;
+          return;
+        }
+        if (!record.hasOwnProperty(key)) {
+          html += `<div class="form-doc-field"></div>`;
+          return;
+        }
+        rendered.add(key);
+        html += `
+          <div class="form-doc-field">
+            <span class="flabel">${escapeHtml(humanizeKey(key))}</span>
+            ${copyableValueHtml(record[key])}
+          </div>
+        `;
+      });
+    });
+
+    // 2. Cualquier otro campo del formulario no contemplado en el orden fijo
+    //    (para no perder datos si el formulario cambia en el futuro)
     Object.keys(record).forEach(key => {
-      if (INTERNAL_FIELDS.has(key)) return;
+      if (INTERNAL_FIELDS.has(key) || rendered.has(key)) return;
       html += `
         <div class="form-doc-field">
           <span class="flabel">${escapeHtml(humanizeKey(key))}</span>
-          ${formatValue(record[key])}
+          ${copyableValueHtml(record[key])}
         </div>
       `;
     });
@@ -446,32 +468,11 @@ function renderFormView(records) {
   });
 }
 
-function switchView(view) {
-  const table = document.getElementById('resultsTable');
-  const formView = document.getElementById('formView');
-  const tabTable = document.getElementById('tabBtnTable');
-  const tabForm = document.getElementById('tabBtnForm');
-
-  if (view === 'table') {
-    table.style.display = '';
-    formView.style.display = 'none';
-    tabTable.classList.add('active');
-    tabForm.classList.remove('active');
-  } else {
-    table.style.display = 'none';
-    formView.style.display = '';
-    tabForm.classList.add('active');
-    tabTable.classList.remove('active');
-    renderFormView(lastRecords);
-  }
-}
-
 function processJSON() {
   const input = document.getElementById('jsonInput').value.trim();
   const statusEl = document.getElementById('status');
   const resultsCard = document.getElementById('resultsCard');
   const emptyState = document.getElementById('emptyState');
-  const body = document.getElementById('resultsBody');
   const summary = document.getElementById('summary');
 
   if (!input) {
@@ -496,57 +497,18 @@ function processJSON() {
     return;
   }
 
-  body.innerHTML = '';
-  let withSequence = 0;
-  let withoutSequence = 0;
-
-  // Ordenar por fecha de sumisión, más reciente primero (si existe el campo)
-  records.sort((a, b) => {
-    const da = new Date(a.dateSubmitted || 0).getTime();
-    const db = new Date(b.dateSubmitted || 0).getTime();
-    return db - da;
-  });
-
-  records.forEach(record => {
-    const seqKey = findSequenceKey(record);
-    const seqValue = seqKey ? record[seqKey] : null;
-
-    const fullName = [record.name, record.surname].filter(Boolean).join(' ') || '—';
-    const station = record.iataStationCode || '—';
-    const company = record.company || '—';
-    const date = record.dateSubmittedLocal || record.dateSubmitted || '—';
-
-    let idCell;
-    if (seqValue) {
-      withSequence++;
-      idCell = `<span class="id-pill">${escapeHtml(seqValue)}</span>
-                 <button class="copy-btn" onclick="copyValue('${escapeHtml(seqValue)}', this)">Copiar</button>`;
-    } else {
-      withoutSequence++;
-      idCell = `<span class="pending-pill">Sin asignar / pendiente</span>`;
-    }
-
-    const row = document.createElement('tr');
-    row.innerHTML = `
-      <td><b>${escapeHtml(fullName)}</b></td>
-      <td>${escapeHtml(station)}</td>
-      <td>${escapeHtml(company)}</td>
-      <td>${escapeHtml(date)}</td>
-      <td>${idCell}</td>
-    `;
-    body.appendChild(row);
-  });
-
-  summary.innerHTML = `
-    <div class="stat"><b>${records.length}</b> registros procesados</div>
-    <div class="stat"><b>${withSequence}</b> con ID asignado</div>
-    <div class="stat"><b>${withoutSequence}</b> sin ID / pendientes</div>
-  `;
-
   lastRecords = records;
   resultsCard.style.display = 'block';
   emptyState.style.display = 'none';
-  switchView('table');
+  renderFormView(records);
+
+  const withSequence = records.filter(r => findSequenceKey(r) && r[findSequenceKey(r)]).length;
+  summary.innerHTML = `
+    <div class="stat"><b>${records.length}</b> registros procesados</div>
+    <div class="stat"><b>${withSequence}</b> con ID asignado</div>
+    <div class="stat"><b>${records.length - withSequence}</b> sin ID / pendientes</div>
+  `;
+
   statusEl.textContent = `Procesado correctamente (${records.length} registro${records.length !== 1 ? 's' : ''})`;
   statusEl.className = 'status';
 }
