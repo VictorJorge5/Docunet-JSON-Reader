@@ -222,6 +222,26 @@
     border-color: var(--iberia-red);
     color: var(--iberia-red);
   }
+  .form-doc-columbus-banner {
+    background: #eaf2fb;
+    border-bottom: 1px solid #1a5fb4;
+    padding: 10px 14px;
+    font-size: 13.5px;
+  }
+  .form-doc-columbus-banner a {
+    color: #1a5fb4;
+    font-weight: 700;
+    text-decoration: underline;
+  }
+  .form-doc-amos-note {
+    background: var(--warn-bg);
+    border-bottom: 1px solid var(--warn-border);
+    padding: 10px 14px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #8a6d00;
+    line-height: 1.5;
+  }
   .form-doc-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -485,6 +505,24 @@ function renderFormView(records) {
              <button class="copy-btn" onclick="copyValue('${escapeHtml(seqValue)}', this)">Copiar</button>`
           : `<span class="pending-pill">Certifying Staff ID: sin asignar / pendiente</span>`}
       </div>
+      `}
+      ${isDelete ? `
+      <div class="form-doc-columbus-banner">
+        <a href="https://ibcolumbus.service-now.com/esc?id=sc_cat_item&sys_id=dd13d5862bd872907924f142de91bfed" target="_blank" rel="noopener">Columbus External User Request</a>
+      </div>
+      <div class="form-doc-columbus-banner">
+        En caso de que tenga usuario de AMOS: <a href="https://ibcolumbus.service-now.com/esc?id=sc_cat_item&sys_id=dfda3a1997bd39106a5dffde2153af87" target="_blank" rel="noopener">AMOS Application Access</a>
+      </div>
+      ` : `
+      <div class="form-doc-columbus-banner">
+        <a href="https://ibcolumbus.service-now.com/esc?id=sc_cat_item&table=sc_cat_item&sys_id=4ceb35932b62a6107924f142de91bfb4&recordUrl=com.glideapp.servicecatalog_cat_item_view.do%3Fv%3D1&sysparm_id=4ceb35932b62a6107924f142de91bfb4" target="_blank" rel="noopener">Columbus Solicitud Crear Usuario</a>
+      </div>
+      ${record.amos === 'No AMOS' ? `
+      <div class="form-doc-amos-note">
+        CREAR USUARIO DE DOMINIO<br>
+        NO CREAR E-TLB SOLO AMOS ROLE ONLY AS STAFF
+      </div>
+      ` : ''}
       `}
       <div class="form-doc-grid">
     `;
