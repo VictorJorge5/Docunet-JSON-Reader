@@ -544,10 +544,30 @@ function renderFormView(records) {
       <div class="form-doc-columbus-banner">
         <a href="https://ibcolumbus.service-now.com/esc?id=sc_cat_item&table=sc_cat_item&sys_id=4ceb35932b62a6107924f142de91bfb4&recordUrl=com.glideapp.servicecatalog_cat_item_view.do%3Fv%3D1&sysparm_id=4ceb35932b62a6107924f142de91bfb4" target="_blank" rel="noopener">Columbus Solicitud Crear Usuario</a>
       </div>
-      ${record.amos === 'No AMOS' ? `
+      ${record.role === 'certifier' && record.amos === 'Only as Staff' ? `
       <div class="form-doc-amos-note">
         CREAR USUARIO DE DOMINIO<br>
         NO CREAR E-TLB SOLO AMOS ROLE ONLY AS STAFF
+      </div>
+      ` : ''}
+      ${record.role === 'certifier' && record.amos === 'Outstations External Staff' ? `
+      <div class="form-doc-amos-note">
+        CREAR USUARIO DE DOMINIO<br>
+        CREAR E-TLB<br>
+        AMOS ROLE OUTSTATIONS EXTERNAL STAFF
+      </div>
+      ` : ''}
+      ${record.role === 'admin' ? `
+      <div class="form-doc-amos-note">
+        CREAR USUARIO DE DOMINIO<br>
+        NO CREAR AMOS NI E-TLB
+      </div>
+      ` : ''}
+      ${record.role === 'heavyMaintStaff' ? `
+      <div class="form-doc-amos-note">
+        CREAR USUARIO DE DOMINIO<br>
+        NO CREAR E-TLB<br>
+        AMOS ROLE HM EXTERNAL STAFF
       </div>
       ` : ''}
       <div class="form-doc-columbus-banner">
