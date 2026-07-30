@@ -247,6 +247,10 @@
     color: #8a6d00;
     line-height: 1.5;
   }
+  .form-doc-amos-note .copy-btn {
+    margin-top: 6px;
+    display: inline-block;
+  }
   .form-doc-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -548,6 +552,7 @@ function renderFormView(records) {
       <div class="form-doc-amos-note">
         CREAR USUARIO DE DOMINIO<br>
         NO CREAR E-TLB SOLO AMOS ROLE ONLY AS STAFF
+        <button class="copy-btn" onclick="copyValue('CREAR USUARIO DE DOMINIO\\nNO CREAR E-TLB SOLO AMOS ROLE ONLY AS STAFF', this)">Copiar</button>
       </div>
       ` : ''}
       ${record.role === 'certifier' && record.amos === 'Outstations External Staff' ? `
@@ -555,12 +560,14 @@ function renderFormView(records) {
         CREAR USUARIO DE DOMINIO<br>
         CREAR E-TLB<br>
         AMOS ROLE OUTSTATIONS EXTERNAL STAFF
+        <button class="copy-btn" onclick="copyValue('CREAR USUARIO DE DOMINIO\\nCREAR E-TLB\\nAMOS ROLE OUTSTATIONS EXTERNAL STAFF', this)">Copiar</button>
       </div>
       ` : ''}
       ${record.role === 'admin' ? `
       <div class="form-doc-amos-note">
         CREAR USUARIO DE DOMINIO<br>
         NO CREAR AMOS NI E-TLB
+        <button class="copy-btn" onclick="copyValue('CREAR USUARIO DE DOMINIO\\nNO CREAR AMOS NI E-TLB', this)">Copiar</button>
       </div>
       ` : ''}
       ${record.role === 'heavyMaintStaff' ? `
@@ -568,6 +575,7 @@ function renderFormView(records) {
         CREAR USUARIO DE DOMINIO<br>
         NO CREAR E-TLB<br>
         AMOS ROLE HM EXTERNAL STAFF
+        <button class="copy-btn" onclick="copyValue('CREAR USUARIO DE DOMINIO\\nNO CREAR E-TLB\\nAMOS ROLE HM EXTERNAL STAFF', this)">Copiar</button>
       </div>
       ` : ''}
       <div class="form-doc-columbus-banner">
