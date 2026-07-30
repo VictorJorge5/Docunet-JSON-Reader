@@ -551,8 +551,9 @@ function renderFormView(records) {
       ${record.role === 'certifier' && record.amos === 'Only as Staff' ? `
       <div class="form-doc-amos-note">
         CREAR USUARIO DE DOMINIO<br>
-        NO CREAR E-TLB SOLO AMOS ROLE ONLY AS STAFF
-        <button class="copy-btn" onclick="copyValue('CREAR USUARIO DE DOMINIO\\nNO CREAR E-TLB SOLO AMOS ROLE ONLY AS STAFF', this)">Copiar</button>
+        CREAR E-TLB<br>
+        AMOS ROLE ONLY AS STAFF
+        <button class="copy-btn" onclick="copyValue('CREAR USUARIO DE DOMINIO\\nCREAR E-TLB\\nAMOS ROLE ONLY AS STAFF', this)">Copiar</button>
       </div>
       ` : ''}
       ${record.role === 'certifier' && record.amos === 'Outstations External Staff' ? `
